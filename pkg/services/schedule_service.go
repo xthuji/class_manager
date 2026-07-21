@@ -2,10 +2,12 @@ package services
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/class_manager/pkg/db"
 	"github.com/class_manager/pkg/models"
+	"github.com/class_manager/pkg/utils"
 )
 
 type ScheduleService struct{}
@@ -30,10 +32,15 @@ func (s *ScheduleService) CreateSchedule(req models.ScheduleCreateRequest) (*mod
 		return nil, err
 	}
 
+	utils.LogInfof("排课创建: ID=%d, 课程ID=%d", id, req.CourseID)
+	logService := NewOperationLogService()
+	logService.LogChange("update", "course", req.CourseID, resolveCourseName(req.CourseID), []FieldChange{{Field: "排课", Old: "", New: fmt.Sprintf("周%d %s", req.DayOfWeek, req.Period)}})
 	return s.GetScheduleByID(id)
 }
 
 func (s *ScheduleService) UpdateSchedule(req models.ScheduleUpdateRequest) (*models.Schedule, error) {
+	old, _ := s.GetScheduleByID(req.ID)
+
 	timestamp := db.GetTimestamp()
 
 	query := `UPDATE schedules SET day_of_week=?, period=?, start_time=?, end_time=?, hours_consumed=?, updated_at=? WHERE id=?`
@@ -43,13 +50,50 @@ func (s *ScheduleService) UpdateSchedule(req models.ScheduleUpdateRequest) (*mod
 		return nil, err
 	}
 
+	utils.LogInfof("排课更新: ID=%d", req.ID)
+	logService := NewOperationLogService()
+	var changes []FieldChange
+	var entityName string
+	var courseID int64
+	if old != nil {
+		courseID = old.CourseID
+		entityName = resolveCourseName(old.CourseID)
+		if old.DayOfWeek != req.DayOfWeek {
+			changes = append(changes, FieldChange{Field: "排课-星期", Old: old.DayOfWeek, New: req.DayOfWeek})
+		}
+		if old.Period != req.Period {
+			changes = append(changes, FieldChange{Field: "排课-时间段", Old: old.Period, New: req.Period})
+		}
+		if old.StartTime != req.StartTime {
+			changes = append(changes, FieldChange{Field: "排课-开始时间", Old: old.StartTime, New: req.StartTime})
+		}
+		if old.EndTime != req.EndTime {
+			changes = append(changes, FieldChange{Field: "排课-结束时间", Old: old.EndTime, New: req.EndTime})
+		}
+		if old.HoursConsumed != req.HoursConsumed {
+			changes = append(changes, FieldChange{Field: "排课-消耗课时", Old: old.HoursConsumed, New: req.HoursConsumed})
+		}
+	}
+	if len(changes) > 0 {
+		logService.LogChange("update", "course", courseID, entityName, changes)
+	}
 	return s.GetScheduleByID(req.ID)
 }
 
 func (s *ScheduleService) DeleteSchedule(id int64) error {
+	old, _ := s.GetScheduleByID(id)
+
 	query := `DELETE FROM schedules WHERE id=?`
 	_, err := db.DB.Exec(query, id)
-	return err
+	if err != nil {
+		return err
+	}
+	utils.LogInfof("排课删除: ID=%d", id)
+	logService := NewOperationLogService()
+	if old != nil {
+		logService.LogChange("update", "course", old.CourseID, resolveCourseName(old.CourseID), []FieldChange{{Field: "排课", Old: fmt.Sprintf("周%d %s", old.DayOfWeek, old.Period), New: ""}})
+	}
+	return nil
 }
 
 func (s *ScheduleService) GetScheduleByID(id int64) (*models.Schedule, error) {
@@ -101,7 +145,7 @@ func (s *ScheduleService) scanSchedule(row *sql.Row) (*models.Schedule, error) {
 }
 
 func (s *ScheduleService) scanSchedules(rows *sql.Rows) ([]models.Schedule, error) {
-	var schedules []models.Schedule
+	schedules := []models.Schedule{}
 
 	for rows.Next() {
 		var schedule models.Schedule

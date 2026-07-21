@@ -24,8 +24,17 @@ type BatchHourRecordRequest struct {
 	StudentIDs  []int64  `json:"student_ids"`
 	CourseID    int64    `json:"course_id"`
 	Hours       float64  `json:"hours"`
-	RecordDate  string   `json:"record_date"`
-	Description string   `json:"description"`
+	RecordDate  string  `json:"record_date"`
+	Description string  `json:"description"`
+}
+
+type HourRecordUpdateRequest struct {
+	ID          int64   `json:"id"`
+	StudentID   int64   `json:"student_id"`
+	CourseID    int64   `json:"course_id"`
+	Hours       float64 `json:"hours"`
+	RecordDate  string  `json:"record_date"`
+	Description string  `json:"description"`
 }
 
 type HoursSummaryResponse struct {
@@ -35,28 +44,41 @@ type HoursSummaryResponse struct {
 }
 
 type HourRecordListRequest struct {
-	StudentIDs []int64 `json:"student_ids"`
-	CourseIDs  []int64 `json:"course_ids"`
-	StartDate  string  `json:"start_date"`
-	EndDate    string  `json:"end_date"`
+	StudentIDs    []int64 `json:"student_ids"`
+	CourseIDs     []int64 `json:"course_ids"`
+	StartDate     string  `json:"start_date"`
+	EndDate       string  `json:"end_date"`
+	StudentStatus string  `json:"student_status"`
+	Page          int     `json:"page"`
+	PageSize      int     `json:"page_size"`
 }
 
 type HourRecordWithDetails struct {
-	ID            int64     `json:"id"`
-	StudentID     int64     `json:"student_id"`
-	CourseID      int64     `json:"course_id"`
-	Hours         float64   `json:"hours"`
-	RecordDate    string    `json:"record_date"`
-	Description   string    `json:"description"`
-	CreatedAt     time.Time `json:"created_at"`
-	StudentName   string    `json:"student_name"`
-	StudentNo     string    `json:"student_no"`
-	CourseName    string    `json:"course_name"`
-	CourseSubject string    `json:"course_subject"`
+	ID          int64     `json:"id"`
+	StudentID   int64     `json:"student_id"`
+	CourseID    int64     `json:"course_id"`
+	Hours       float64   `json:"hours"`
+	RecordDate  string    `json:"record_date"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
+	StudentName string    `json:"student_name"`
+	StudentNo   string    `json:"student_no"`
+	CourseName  string    `json:"course_name"`
+}
+
+type PaginatedResponse struct {
+	Data       interface{} `json:"data"`
+	Total      int         `json:"total"`
+	Page       int         `json:"page"`
+	PageSize   int         `json:"page_size"`
+	TotalPages int         `json:"total_pages"`
 }
 
 type ExportRequest struct {
-	StudentID  int64  `json:"student_id"`
-	StartDate  string `json:"start_date"`
-	EndDate    string `json:"end_date"`
+	StudentIDs     []int64 `json:"student_ids"`
+	CourseIDs      []int64 `json:"course_ids"`
+	StudentStatus  string  `json:"student_status"`
+	StartDate      string  `json:"start_date"`
+	EndDate        string  `json:"end_date"`
+	Limit          int     `json:"limit"`
 }

@@ -3,15 +3,14 @@ package services
 import (
 	"database/sql"
 	"encoding/csv"
-	"encoding/json"
 	"fmt"
 	"io"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/class_manager/pkg/db"
 	"github.com/class_manager/pkg/models"
+	"github.com/class_manager/pkg/utils"
 )
 
 type StudentService struct{}
@@ -31,7 +30,6 @@ func (s *StudentService) GenerateStudentID() (string, error) {
 
 func (s *StudentService) CreateStudent(req models.StudentCreateRequest) (*models.Student, error) {
 	timestamp := db.GetTimestamp()
-	subjectsJSON, _ := json.Marshal(req.Subjects)
 
 	studentID := req.StudentID
 	if studentID == "" {
@@ -42,10 +40,10 @@ func (s *StudentService) CreateStudent(req models.StudentCreateRequest) (*models
 		}
 	}
 
-	query := `INSERT INTO students (name, student_id, contact, subjects, total_hours, completed_hours, created_at, updated_at) 
+	query := `INSERT INTO students (name, student_id, contact, total_hours, completed_hours, is_dropped, created_at, updated_at)
 			  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 
-	result, err := db.DB.Exec(query, req.Name, studentID, req.Contact, string(subjectsJSON), req.TotalHours, 0, timestamp, timestamp)
+	result, err := db.DB.Exec(query, req.Name, studentID, req.Contact, 0, 0, 0, timestamp, timestamp)
 	if err != nil {
 		return nil, err
 	}
@@ -55,50 +53,155 @@ func (s *StudentService) CreateStudent(req models.StudentCreateRequest) (*models
 		return nil, err
 	}
 
+	utils.LogInfof("学生创建: ID=%d, 姓名=%s, 学号=%s", id, req.Name, studentID)
+	logService := NewOperationLogService()
+	logService.LogChange("create", "student", id, fmt.Sprintf("%s (%s)", req.Name, studentID), nil)
 	return s.GetStudentByID(id)
 }
 
 func (s *StudentService) UpdateStudent(req models.StudentUpdateRequest) (*models.Student, error) {
+	old, _ := s.GetStudentByID(req.ID)
+
 	timestamp := db.GetTimestamp()
-	subjectsJSON, _ := json.Marshal(req.Subjects)
 
-	query := `UPDATE students SET name=?, contact=?, subjects=?, total_hours=?, updated_at=? WHERE id=?`
+	query := `UPDATE students SET name=?, contact=?, total_hours=?, is_dropped=?, updated_at=? WHERE id=?`
 
-	_, err := db.DB.Exec(query, req.Name, req.Contact, string(subjectsJSON), req.TotalHours, timestamp, req.ID)
+	isDropped := 0
+	if req.IsDropped {
+		isDropped = 1
+	}
+	_, err := db.DB.Exec(query, req.Name, req.Contact, req.TotalHours, isDropped, timestamp, req.ID)
 	if err != nil {
 		return nil, err
 	}
 
+	utils.LogInfof("学生更新: ID=%d, 姓名=%s", req.ID, req.Name)
+	logService := NewOperationLogService()
+	var changes []FieldChange
+	if old != nil {
+		if old.Name != req.Name {
+			changes = append(changes, FieldChange{Field: "姓名", Old: old.Name, New: req.Name})
+		}
+		if old.Contact != req.Contact {
+			changes = append(changes, FieldChange{Field: "联系方式", Old: old.Contact, New: req.Contact})
+		}
+		if old.TotalHours != req.TotalHours {
+			changes = append(changes, FieldChange{Field: "总课时", Old: old.TotalHours, New: req.TotalHours})
+		}
+		if old.IsDropped != req.IsDropped {
+			changes = append(changes, FieldChange{Field: "退学状态", Old: old.IsDropped, New: req.IsDropped})
+		}
+	}
+	logService.LogChange("update", "student", req.ID, req.Name, changes)
 	return s.GetStudentByID(req.ID)
 }
 
 func (s *StudentService) DeleteStudent(id int64) error {
-	query := `DELETE FROM students WHERE id=?`
-	_, err := db.DB.Exec(query, id)
-	return err
+	old, _ := s.GetStudentByID(id)
+
+	tx, err := db.DB.Begin()
+	if err != nil {
+		return err
+	}
+
+	// 删除关联数据（无外键级联，需手动清理）
+	if _, err := tx.Exec(`DELETE FROM student_course WHERE student_id=?`, id); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM hour_records WHERE student_id=?`, id); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM hour_recharges WHERE student_id=?`, id); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM notifications WHERE student_id=?`, id); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM students WHERE id=?`, id); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	utils.LogInfof("学生删除: ID=%d", id)
+	logService := NewOperationLogService()
+	var entityName string
+	if old != nil {
+		entityName = old.Name
+	}
+	logService.LogChange("delete", "student", id, entityName, nil)
+	return nil
+}
+
+// BatchDeleteStudents 批量删除学生
+func (s *StudentService) BatchDeleteStudents(ids []int64) (int, error) {
+	count := 0
+	for _, id := range ids {
+		if err := s.DeleteStudent(id); err != nil {
+			return count, err
+		}
+		count++
+	}
+	return count, nil
 }
 
 func (s *StudentService) GetStudentByID(id int64) (*models.Student, error) {
-	query := `SELECT id, name, student_id, contact, subjects, total_hours, completed_hours, created_at, updated_at FROM students WHERE id=?`
+	query := `SELECT id, name, student_id, contact, total_hours, completed_hours, is_dropped, created_at, updated_at FROM students WHERE id=?`
 
 	row := db.DB.QueryRow(query, id)
 	return s.scanStudent(row)
 }
 
-func (s *StudentService) ListStudents(req models.StudentListRequest) ([]models.Student, error) {
-	offset := (req.Page - 1) * req.PageSize
-	query := `SELECT id, name, student_id, contact, subjects, total_hours, completed_hours, created_at, updated_at FROM students LIMIT ? OFFSET ?`
-
-	rows, err := db.DB.Query(query, req.PageSize, offset)
+func (s *StudentService) ListStudents(req models.StudentListRequest) (models.PaginatedResponse, error) {
+	page := req.Page
+	if page <= 0 {
+		page = 1
+	}
+	pageSize := req.PageSize
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+	offset := (page - 1) * pageSize
+	
+	// 获取总数
+	var total int
+	err := db.DB.QueryRow(`SELECT COUNT(*) FROM students`).Scan(&total)
 	if err != nil {
-		return nil, err
+		return models.PaginatedResponse{}, err
+	}
+	
+	query := `SELECT id, name, student_id, contact, total_hours, completed_hours, is_dropped, created_at, updated_at FROM students ORDER BY id ASC LIMIT ? OFFSET ?`
+
+	rows, err := db.DB.Query(query, pageSize, offset)
+	if err != nil {
+		return models.PaginatedResponse{}, err
 	}
 	defer rows.Close()
 
-	return s.scanStudents(rows)
+	students, err := s.scanStudents(rows)
+	if err != nil {
+		return models.PaginatedResponse{}, err
+	}
+	
+	totalPages := (total + pageSize - 1) / pageSize
+
+	return models.PaginatedResponse{
+		Data:       students,
+		Total:      total,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
 }
 
-func (s *StudentService) SearchStudents(req models.StudentSearchRequest) ([]models.Student, error) {
+func (s *StudentService) SearchStudents(req models.StudentSearchRequest) (models.PaginatedResponse, error) {
 	var conditions []string
 	var args []interface{}
 
@@ -112,27 +215,64 @@ func (s *StudentService) SearchStudents(req models.StudentSearchRequest) ([]mode
 		args = append(args, "%"+req.StudentID+"%")
 	}
 
-	if len(req.Subjects) > 0 {
-		orConditions := make([]string, len(req.Subjects))
-		for i, subject := range req.Subjects {
-			orConditions[i] = "subjects LIKE ?"
-			args = append(args, "%"+subject+"%")
+	if req.IsDropped != nil {
+		if *req.IsDropped {
+			conditions = append(conditions, "is_dropped = 1")
+		} else {
+			conditions = append(conditions, "is_dropped = 0")
 		}
-		conditions = append(conditions, "("+strings.Join(orConditions, " OR ")+")")
 	}
 
-	query := `SELECT id, name, student_id, contact, subjects, total_hours, completed_hours, created_at, updated_at FROM students`
+	query := `SELECT id, name, student_id, contact, total_hours, completed_hours, is_dropped, created_at, updated_at FROM students`
+	countQuery := `SELECT COUNT(*) FROM students`
+	
 	if len(conditions) > 0 {
-		query += " WHERE " + strings.Join(conditions, " AND ")
+		whereClause := " WHERE " + strings.Join(conditions, " AND ")
+		query += whereClause
+		countQuery += whereClause
 	}
+
+	// 获取总数
+	countArgs := make([]interface{}, len(args))
+	copy(countArgs, args)
+	var total int
+	err := db.DB.QueryRow(countQuery, countArgs...).Scan(&total)
+	if err != nil {
+		return models.PaginatedResponse{}, err
+	}
+	
+	page := req.Page
+	if page <= 0 {
+		page = 1
+	}
+	pageSize := req.PageSize
+	if pageSize <= 0 {
+		pageSize = 10
+	}
+	offset := (page - 1) * pageSize
+	query += " ORDER BY id ASC LIMIT ? OFFSET ?"
+	args = append(args, pageSize, offset)
 
 	rows, err := db.DB.Query(query, args...)
 	if err != nil {
-		return nil, err
+		return models.PaginatedResponse{}, err
 	}
 	defer rows.Close()
 
-	return s.scanStudents(rows)
+	students, err := s.scanStudents(rows)
+	if err != nil {
+		return models.PaginatedResponse{}, err
+	}
+	
+	totalPages := (total + pageSize - 1) / pageSize
+
+	return models.PaginatedResponse{
+		Data:       students,
+		Total:      total,
+		Page:       page,
+		PageSize:   pageSize,
+		TotalPages: totalPages,
+	}, nil
 }
 
 func (s *StudentService) BatchImportStudents(csvContent string) (models.BatchImportResult, error) {
@@ -165,8 +305,6 @@ func (s *StudentService) BatchImportStudents(csvContent string) (models.BatchImp
 		name := studentData["姓名"]
 		studentID := studentData["学号"]
 		contact := studentData["联系方式"]
-		subjectsStr := studentData["科目"]
-		totalHoursStr := studentData["初始课时"]
 
 		if name == "" || studentID == "" {
 			failedCount++
@@ -174,27 +312,10 @@ func (s *StudentService) BatchImportStudents(csvContent string) (models.BatchImp
 			continue
 		}
 
-		var totalHours float64 = 0
-		if totalHoursStr != "" {
-			totalHours, err = strconv.ParseFloat(totalHoursStr, 64)
-			if err != nil {
-				failedCount++
-				errors = append(errors, fmt.Sprintf("课时格式错误: %s", studentID))
-				continue
-			}
-		}
-
-		subjects := strings.Split(subjectsStr, ",")
-		for i := range subjects {
-			subjects[i] = strings.TrimSpace(subjects[i])
-		}
-
 		req := models.StudentCreateRequest{
-			Name:       name,
-			StudentID:  studentID,
-			Contact:    contact,
-			Subjects:   subjects,
-			TotalHours: totalHours,
+			Name:      name,
+			StudentID: studentID,
+			Contact:   contact,
 		}
 
 		if _, err := s.CreateStudent(req); err != nil {
@@ -222,9 +343,9 @@ func (s *StudentService) ExportStudents(ids []int64) (string, error) {
 			placeholders[i] = "?"
 			args = append(args, ids[i])
 		}
-		query = fmt.Sprintf(`SELECT name, student_id, contact, subjects, total_hours, completed_hours FROM students WHERE id IN (%s)`, strings.Join(placeholders, ","))
+		query = fmt.Sprintf(`SELECT name, student_id, contact, total_hours, completed_hours FROM students WHERE id IN (%s)`, strings.Join(placeholders, ","))
 	} else {
-		query = `SELECT name, student_id, contact, subjects, total_hours, completed_hours FROM students`
+		query = `SELECT name, student_id, contact, total_hours, completed_hours FROM students`
 	}
 
 	rows, err := db.DB.Query(query, args...)
@@ -234,21 +355,18 @@ func (s *StudentService) ExportStudents(ids []int64) (string, error) {
 	defer rows.Close()
 
 	var sb strings.Builder
-	sb.WriteString("姓名,学号,联系方式,科目,总课时,已完成课时\n")
+	sb.WriteString("姓名,学号,联系方式,总课时,已完成课时\n")
 
 	for rows.Next() {
-		var name, studentID, contact, subjectsStr string
+		var name, studentID, contact string
 		var totalHours, completedHours float64
 
-		if err := rows.Scan(&name, &studentID, &contact, &subjectsStr, &totalHours, &completedHours); err != nil {
+		if err := rows.Scan(&name, &studentID, &contact, &totalHours, &completedHours); err != nil {
 			return "", err
 		}
 
-		var subjects []string
-		json.Unmarshal([]byte(subjectsStr), &subjects)
-
-		sb.WriteString(fmt.Sprintf("%s,%s,%s,%s,%.2f,%.2f\n",
-			name, studentID, contact, strings.Join(subjects, ","), totalHours, completedHours))
+		sb.WriteString(fmt.Sprintf("%s,%s,%s,%.2f,%.2f\n",
+			name, studentID, contact, totalHours, completedHours))
 	}
 
 	return sb.String(), nil
@@ -256,17 +374,17 @@ func (s *StudentService) ExportStudents(ids []int64) (string, error) {
 
 func (s *StudentService) scanStudent(row *sql.Row) (*models.Student, error) {
 	var student models.Student
-	var subjectsStr string
 	var createdAtStr, updatedAtStr string
+	var isDropped int
 
 	err := row.Scan(
 		&student.ID,
 		&student.Name,
 		&student.StudentID,
 		&student.Contact,
-		&subjectsStr,
 		&student.TotalHours,
 		&student.CompletedHours,
+		&isDropped,
 		&createdAtStr,
 		&updatedAtStr,
 	)
@@ -278,7 +396,7 @@ func (s *StudentService) scanStudent(row *sql.Row) (*models.Student, error) {
 		return nil, err
 	}
 
-	json.Unmarshal([]byte(subjectsStr), &student.Subjects)
+	student.IsDropped = isDropped == 1
 	student.RemainingHours = student.TotalHours - student.CompletedHours
 	student.CreatedAt, _ = time.Parse(time.RFC3339, createdAtStr)
 	student.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAtStr)
@@ -287,21 +405,21 @@ func (s *StudentService) scanStudent(row *sql.Row) (*models.Student, error) {
 }
 
 func (s *StudentService) scanStudents(rows *sql.Rows) ([]models.Student, error) {
-	var students []models.Student
+	students := []models.Student{}
 
 	for rows.Next() {
 		var student models.Student
-		var subjectsStr string
 		var createdAtStr, updatedAtStr string
+		var isDropped int
 
 		err := rows.Scan(
 			&student.ID,
 			&student.Name,
 			&student.StudentID,
 			&student.Contact,
-			&subjectsStr,
 			&student.TotalHours,
 			&student.CompletedHours,
+			&isDropped,
 			&createdAtStr,
 			&updatedAtStr,
 		)
@@ -310,7 +428,7 @@ func (s *StudentService) scanStudents(rows *sql.Rows) ([]models.Student, error) 
 			return nil, err
 		}
 
-		json.Unmarshal([]byte(subjectsStr), &student.Subjects)
+		student.IsDropped = isDropped == 1
 		student.RemainingHours = student.TotalHours - student.CompletedHours
 		student.CreatedAt, _ = time.Parse(time.RFC3339, createdAtStr)
 		student.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAtStr)

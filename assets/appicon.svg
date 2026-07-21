@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- 浅蓝色背景渐变 -->
+    <linearGradient id="macBg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#bae6fd" />
+      <stop offset="100%" stop-color="#7dd3fc" />
+    </linearGradient>
+
+    <!-- 书本底部外框渐变 -->
+    <linearGradient id="bookCover" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+  </defs>
+
+  <!-- 图标主体圆角矩形背景 (macOS 规格 Squircle) -->
+  <rect width="512" height="512" rx="115" fill="url(#macBg)" />
+
+  <!-- 放射光芒 -->
+  <g fill="#f2be22">
+    <rect x="250" y="68" width="12" height="40" rx="6" />
+    <rect x="250" y="68" width="12" height="40" rx="6" transform="rotate(16, 256, 256)" />
+    <rect x="250" y="68" width="12" height="40" rx="6" transform="rotate(-16, 256, 256)" />
+    <rect x="250" y="68" width="12" height="40" rx="6" transform="rotate(32, 256, 256)" />
+    <rect x="250" y="68" width="12" height="40" rx="6" transform="rotate(-32, 256, 256)" />
+    <rect x="250" y="68" width="12" height="40" rx="6" transform="rotate(48, 256, 256)" />
+    <rect x="250" y="68" width="12" height="40" rx="6" transform="rotate(-48, 256, 256)" />
+    <rect x="250" y="68" width="12" height="40" rx="6" transform="rotate(64, 256, 256)" />
+    <rect x="250" y="68" width="12" height="40" rx="6" transform="rotate(-64, 256, 256)" />
+    <rect x="250" y="68" width="12" height="40" rx="6" transform="rotate(80, 256, 256)" />
+    <rect x="250" y="68" width="12" height="40" rx="6" transform="rotate(-80, 256, 256)" />
+  </g>
+
+  <!-- 打开的书本 - 底部封皮底座 -->
+  <path d="M 256 418 C 218 390 152 388 68 410 C 52 414 50 394 66 388 C 156 362 226 366 256 392 C 286 366 356 362 446 388 C 462 394 460 414 444 410 C 360 388 294 390 256 418 Z" fill="url(#bookCover)" />
+
+  <!-- 打开的书本 - 左侧页面 -->
+  <path d="M 252 390 C 220 368 150 368 76 386 L 112 272 C 172 258 230 258 252 278 Z" fill="#ffffff" stroke="#2b73be" stroke-width="8" stroke-linejoin="round" />
+  <path d="M 125 320 C 170 310 215 310 248 323" fill="none" stroke="#2b73be" stroke-width="6" stroke-linecap="round" />
+  <path d="M 108 365 C 160 352 210 352 248 365" fill="none" stroke="#2b73be" stroke-width="6" stroke-linecap="round" />
+
+  <!-- 打开的书本 - 右侧页面 -->
+  <path d="M 260 390 C 292 368 362 368 436 386 L 400 272 C 340 258 282 258 260 278 Z" fill="#ffffff" stroke="#2b73be" stroke-width="8" stroke-linejoin="round" />
+  <path d="M 387 320 C 342 310 297 310 264 323" fill="none" stroke="#2b73be" stroke-width="6" stroke-linecap="round" />
+  <path d="M 404 365 C 352 352 302 352 264 365" fill="none" stroke="#2b73be" stroke-width="6" stroke-linecap="round" />
+
+  <!-- 书本中缝线 -->
+  <path d="M 256 276 L 256 396" stroke="#184f8e" stroke-width="8" stroke-linecap="round" />
+
+  <!-- 学士帽 - 下方帽体 -->
+  <path d="M 192 252 C 192 282 320 282 320 252 L 320 238 L 192 238 Z" fill="#1e2229" />
+
+  <!-- 学士帽 - 顶部帽檐菱形 -->
+  <polygon points="256,182 368,222 256,262 144,222" fill="#282d37" stroke="#1e2229" stroke-width="3" stroke-linejoin="round" />
+
+  <!-- 学士帽 - 顶部流苏纽扣 -->
+  <circle cx="256" cy="222" r="7" fill="#f2be22" />
+
+  <!-- 学士帽 - 悬挂流苏 -->
+  <path d="M 256 222 L 340 240 L 340 282" fill="none" stroke="#f2be22" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M 340 282 L 333 320 C 333 328 347 328 347 320 L 340 282 Z" fill="#f2be22" />
+</svg>

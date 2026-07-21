@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Class Manager</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div id="app">
+  <!-- 侧边栏（默认折叠） -->
+  <aside class="sidebar collapsed" id="sidebar">
+    <div class="sidebar-header">
+      <h1>Class Manager</h1>
+      <span class="cm-short">CM</span>
+    </div>
+    <nav class="nav-list" id="navList"></nav>
+    <div class="sidebar-footer">
+      <button class="collapse-btn" id="collapseBtn" title="折叠/展开">
+        <svg id="collapseIcon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- 主内容 -->
+  <div class="main-content sidebar-collapsed" id="mainContent">
+    <div class="page-header"><h2 id="pageTitle">仪表盘</h2></div>
+    <div class="page-body" id="pageBody"></div>
+  </div>
+</div>
+
+<!-- 模态框容器 -->
+<div id="modalContainer"></div>
+
+<script src="/js/utils.js"></script>
+<script src="/js/icons.js"></script>
+<script src="/js/components.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

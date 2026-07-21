@@ -23,6 +23,14 @@ func (api *HourRecordAPI) BatchCreateHourRecord(req models.BatchHourRecordReques
 	return api.service.BatchCreateHourRecord(req)
 }
 
+func (api *HourRecordAPI) UpdateHourRecord(req models.HourRecordUpdateRequest) (*models.HourRecord, error) {
+	return api.service.UpdateHourRecord(req)
+}
+
+func (api *HourRecordAPI) BatchDeleteHourRecords(ids []int64) (int, error) {
+	return api.service.BatchDeleteHourRecords(ids)
+}
+
 func (api *HourRecordAPI) GetHourRecordsByStudent(studentID int64) ([]models.HourRecord, error) {
 	return api.service.GetHourRecordsByStudent(studentID)
 }
@@ -35,7 +43,7 @@ func (api *HourRecordAPI) GetStudentHoursSummary(studentID int64) (models.HoursS
 	return api.service.GetStudentHoursSummary(studentID)
 }
 
-func (api *HourRecordAPI) ListHourRecords(req models.HourRecordListRequest) ([]models.HourRecordWithDetails, error) {
+func (api *HourRecordAPI) ListHourRecords(req models.HourRecordListRequest) (models.PaginatedResponse, error) {
 	return api.service.ListHourRecords(req)
 }
 
