@@ -1,0 +1,6 @@
+{
+  "port": 3010,
+  "allow_port_fallback": true,
+  "width": 1000,
+  "height": 800
+}

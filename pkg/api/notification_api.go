@@ -15,8 +15,8 @@ func NewNotificationAPI() *NotificationAPI {
 	}
 }
 
-func (api *NotificationAPI) GetNotifications(status string) ([]models.Notification, error) {
-	return api.service.GetNotifications(status)
+func (api *NotificationAPI) GetNotifications(status string, page, pageSize int) (models.PaginatedResponse, error) {
+	return api.service.GetNotifications(status, page, pageSize)
 }
 
 func (api *NotificationAPI) GetUnreadCount() (int, error) {
@@ -33,19 +33,8 @@ func (api *NotificationAPI) BatchMarkAsRead(ids []int64) (bool, error) {
 	return err == nil, err
 }
 
-func (api *NotificationAPI) MarkAsProcessed(id int64) (bool, error) {
-	err := api.service.MarkAsProcessed(id)
-	return err == nil, err
-}
-
-func (api *NotificationAPI) BatchMarkAsProcessed(ids []int64) (bool, error) {
-	err := api.service.BatchMarkAsProcessed(ids)
-	return err == nil, err
-}
-
-func (api *NotificationAPI) SendSystemNotification(req models.NotificationRequest) (bool, error) {
-	err := api.service.SendSystemNotification(req)
-	return err == nil, err
+func (api *NotificationAPI) BatchDeleteNotifications(ids []int64) (int, error) {
+	return api.service.BatchDeleteNotifications(ids)
 }
 
 func (api *NotificationAPI) CheckThresholds() (bool, error) {

@@ -27,3 +27,11 @@ type HourRechargeListRequest struct {
 	StartDate string `json:"start_date"`
 	EndDate   string `json:"end_date"`
 }
+
+type HourRechargeUpdateRequest struct {
+	ID           int64   `json:"id"`
+	StudentID    int64   `json:"student_id"`
+	Hours        float64 `json:"hours"`
+	RechargeDate string  `json:"recharge_date"`
+	Description  string  `json:"description"`
+}

@@ -23,16 +23,15 @@ func (api *CourseAPI) UpdateCourse(req models.CourseUpdateRequest) (*models.Cour
 	return api.service.UpdateCourse(req)
 }
 
-func (api *CourseAPI) DeleteCourse(id int64) (bool, error) {
-	err := api.service.DeleteCourse(id)
-	return err == nil, err
+func (api *CourseAPI) BatchDeleteCourses(ids []int64) (int, error) {
+	return api.service.BatchDeleteCourses(ids)
 }
 
 func (api *CourseAPI) GetCourseByID(id int64) (*models.Course, error) {
 	return api.service.GetCourseByID(id)
 }
 
-func (api *CourseAPI) ListCourses(req models.CourseListRequest) ([]models.Course, error) {
+func (api *CourseAPI) ListCourses(req models.CourseListRequest) (models.PaginatedResponse, error) {
 	return api.service.ListCourses(req)
 }
 
@@ -41,8 +40,17 @@ func (api *CourseAPI) EnrollStudent(req models.EnrollRequest) (bool, error) {
 	return err == nil, err
 }
 
+func (api *CourseAPI) UnenrollStudent(req models.EnrollRequest) (bool, error) {
+	err := api.service.UnenrollStudent(req)
+	return err == nil, err
+}
+
 func (api *CourseAPI) GetCourseStudents(courseID int64) ([]models.Student, error) {
 	return api.service.GetCourseStudents(courseID)
+}
+
+func (api *CourseAPI) GetCoursesByStudent(studentID int64) ([]models.Course, error) {
+	return api.service.GetCoursesByStudent(studentID)
 }
 
 func (api *CourseAPI) AddCourseHours(req models.CourseHoursRequest) (*models.Course, error) {

@@ -27,20 +27,19 @@ func (api *StudentAPI) UpdateStudent(req models.StudentUpdateRequest) (*models.S
 	return api.service.UpdateStudent(req)
 }
 
-func (api *StudentAPI) DeleteStudent(id int64) (bool, error) {
-	err := api.service.DeleteStudent(id)
-	return err == nil, err
+func (api *StudentAPI) BatchDeleteStudents(ids []int64) (int, error) {
+	return api.service.BatchDeleteStudents(ids)
 }
 
 func (api *StudentAPI) GetStudentByID(id int64) (*models.Student, error) {
 	return api.service.GetStudentByID(id)
 }
 
-func (api *StudentAPI) ListStudents(req models.StudentListRequest) ([]models.Student, error) {
+func (api *StudentAPI) ListStudents(req models.StudentListRequest) (models.PaginatedResponse, error) {
 	return api.service.ListStudents(req)
 }
 
-func (api *StudentAPI) SearchStudents(req models.StudentSearchRequest) ([]models.Student, error) {
+func (api *StudentAPI) SearchStudents(req models.StudentSearchRequest) (models.PaginatedResponse, error) {
 	return api.service.SearchStudents(req)
 }
 

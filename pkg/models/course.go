@@ -3,32 +3,32 @@ package models
 import "time"
 
 type Course struct {
-	ID           int64     `json:"id"`
-	Name         string    `json:"name"`
-	Subject      string    `json:"subject"`
-	Description  string    `json:"description"`
-	StudentCount int       `json:"student_count"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID             int64     `json:"id"`
+	Name           string    `json:"name"`
+	Description    string    `json:"description"`
+	Threshold      float64   `json:"threshold"`
+	StudentCount   int       `json:"student_count"`
+	RemainingHours float64   `json:"remaining_hours"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type CourseCreateRequest struct {
-	Name        string `json:"name"`
-	Subject     string `json:"subject"`
-	Description string `json:"description"`
+	Name        string  `json:"name"`
+	Description string  `json:"description"`
+	Threshold   float64 `json:"threshold"`
 }
 
 type CourseUpdateRequest struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	Subject     string `json:"subject"`
-	Description string `json:"description"`
+	ID          int64   `json:"id"`
+	Name        string  `json:"name"`
+	Description string  `json:"description"`
+	Threshold   float64 `json:"threshold"`
 }
 
 type CourseListRequest struct {
-	Page     int    `json:"page"`
-	PageSize int    `json:"page_size"`
-	Subject  string `json:"subject"`
+	Page     int `json:"page"`
+	PageSize int `json:"page_size"`
 }
 
 type EnrollRequest struct {

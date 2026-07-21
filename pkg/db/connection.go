@@ -12,13 +12,14 @@ import (
 )
 
 type ExportData struct {
-	Students     []map[string]interface{} `json:"students"`
-	Courses      []map[string]interface{} `json:"courses"`
-	HourRecords  []map[string]interface{} `json:"hour_records"`
-	HourRecharges []map[string]interface{} `json:"hour_recharges"`
-	Schedules    []map[string]interface{} `json:"schedules"`
-	Threshold    []map[string]interface{} `json:"threshold"`
-	Notifications []map[string]interface{} `json:"notifications"`
+	Students       []map[string]interface{} `json:"students"`
+	Courses        []map[string]interface{} `json:"courses"`
+	StudentCourse  []map[string]interface{} `json:"student_course"`
+	HourRecords    []map[string]interface{} `json:"hour_records"`
+	HourRecharges  []map[string]interface{} `json:"hour_recharges"`
+	Schedules      []map[string]interface{} `json:"schedules"`
+	Notifications  []map[string]interface{} `json:"notifications"`
+	OperationLogs  []map[string]interface{} `json:"operation_logs"`
 }
 
 var DB *sql.DB
@@ -56,8 +57,9 @@ func initDBWithPath(dbPath string) error {
 		return err
 	}
 
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
+	// 设置连接池以支持嵌套查询和并发请求，避免单连接死锁
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(0)
 
 	DB = db
@@ -79,14 +81,6 @@ func CloseDB() {
 	}
 }
 
-func GetDBPath() (string, error) {
-	appDataDir, err := os.UserConfigDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(appDataDir, "ClassManager", "class_manager.sqlite"), nil
-}
-
 func GetTimestamp() string {
 	return time.Now().Format(time.RFC3339)
 }
@@ -100,11 +94,12 @@ func ExportAllData() (string, error) {
 	}{
 		{"students", &data.Students},
 		{"courses", &data.Courses},
+		{"student_course", &data.StudentCourse},
 		{"hour_records", &data.HourRecords},
 		{"hour_recharges", &data.HourRecharges},
 		{"schedules", &data.Schedules},
-		{"threshold", &data.Threshold},
 		{"notifications", &data.Notifications},
+		{"operation_logs", &data.OperationLogs},
 	}
 
 	for _, table := range tables {
@@ -167,10 +162,6 @@ func ImportAllData(jsonData string) error {
 	if err != nil {
 		return err
 	}
-	_, err = tx.Exec(`DELETE FROM threshold`)
-	if err != nil {
-		return err
-	}
 	_, err = tx.Exec(`DELETE FROM schedules`)
 	if err != nil {
 		return err
@@ -184,6 +175,10 @@ func ImportAllData(jsonData string) error {
 		return err
 	}
 	_, err = tx.Exec(`DELETE FROM student_course`)
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec(`DELETE FROM operation_logs`)
 	if err != nil {
 		return err
 	}
@@ -222,6 +217,23 @@ func ImportAllData(jsonData string) error {
 		query := `INSERT INTO courses (` + joinWithComma(columns) + `) VALUES (` + joinWithComma(placeholders) + `)`
 
 		for _, record := range data.Courses {
+			values := getValues(record, columns)
+			_, err := tx.Exec(query, values...)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(data.StudentCourse) > 0 {
+		columns := getKeys(data.StudentCourse[0])
+		placeholders := make([]string, len(columns))
+		for i := range placeholders {
+			placeholders[i] = "?"
+		}
+		query := `INSERT INTO student_course (` + joinWithComma(columns) + `) VALUES (` + joinWithComma(placeholders) + `)`
+
+		for _, record := range data.StudentCourse {
 			values := getValues(record, columns)
 			_, err := tx.Exec(query, values...)
 			if err != nil {
@@ -281,23 +293,6 @@ func ImportAllData(jsonData string) error {
 		}
 	}
 
-	if len(data.Threshold) > 0 {
-		columns := getKeys(data.Threshold[0])
-		placeholders := make([]string, len(columns))
-		for i := range placeholders {
-			placeholders[i] = "?"
-		}
-		query := `INSERT INTO threshold (` + joinWithComma(columns) + `) VALUES (` + joinWithComma(placeholders) + `)`
-
-		for _, record := range data.Threshold {
-			values := getValues(record, columns)
-			_, err := tx.Exec(query, values...)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
 	if len(data.Notifications) > 0 {
 		columns := getKeys(data.Notifications[0])
 		placeholders := make([]string, len(columns))
@@ -307,6 +302,23 @@ func ImportAllData(jsonData string) error {
 		query := `INSERT INTO notifications (` + joinWithComma(columns) + `) VALUES (` + joinWithComma(placeholders) + `)`
 
 		for _, record := range data.Notifications {
+			values := getValues(record, columns)
+			_, err := tx.Exec(query, values...)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if len(data.OperationLogs) > 0 {
+		columns := getKeys(data.OperationLogs[0])
+		placeholders := make([]string, len(columns))
+		for i := range placeholders {
+			placeholders[i] = "?"
+		}
+		query := `INSERT INTO operation_logs (` + joinWithComma(columns) + `) VALUES (` + joinWithComma(placeholders) + `)`
+
+		for _, record := range data.OperationLogs {
 			values := getValues(record, columns)
 			_, err := tx.Exec(query, values...)
 			if err != nil {

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -27,18 +28,15 @@ func InitLogger() {
 		return
 	}
 
-	logger = log.New(file, "", log.LstdFlags)
+	multiWriter := io.MultiWriter(file, os.Stdout)
+	logger = log.New(multiWriter, "", log.LstdFlags)
+
+	log.Printf("Log directory: %s", logDir)
 }
 
 func LogInfo(message string) {
 	if logger != nil {
 		logger.Println("[INFO] " + message)
-	}
-}
-
-func LogError(err error) {
-	if logger != nil {
-		logger.Println("[ERROR] " + err.Error())
 	}
 }
 
@@ -48,10 +46,8 @@ func LogErrorf(format string, args ...interface{}) {
 	}
 }
 
-func GetLogDirectory() string {
-	logDir, err := os.UserConfigDir()
-	if err != nil {
-		return "."
+func LogInfof(format string, args ...interface{}) {
+	if logger != nil {
+		logger.Printf("[INFO] "+format, args...)
 	}
-	return filepath.Join(logDir, "ClassManager", "logs")
 }
