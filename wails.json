@@ -1,0 +1,53 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "ClassManager",
+  "outputfilename": "ClassManager",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": {
+    "name": "Class Manager",
+    "email": ""
+  },
+  "info": {
+    "productName": "ClassManager",
+    "companyName": "",
+    "fileDescription": "Class Manager",
+    "copyright": "",
+    "productVersion": "1.0.0"
+  },
+  "app": {
+    "width": 1280,
+    "height": 800,
+    "resizable": true,
+    "fullscreen": false,
+    "title": "Class Manager",
+    "backgroundColour": "#ffffff",
+    "hideWindowOnClose": false
+  },
+  "mac": {
+    "titleBar": {
+      "titleBarStyle": "hiddenInset",
+      "hideTitle": false,
+      "hideTitleBar": false,
+      "fullSizeContent": true,
+      "useToolbar": false,
+      "toolbarStyle": "automatic",
+      "showToolbarButton": false
+    },
+    "webviewIsTransparent": true,
+    "windowIsTranslucent": false,
+    "about": {
+      "title": "Class Manager",
+      "copyright": "",
+      "credits": "",
+      "version": "1.0.0"
+    },
+    "entitlements": {
+      "development": {},
+      "production": {}
+    },
+    "signing": {}
+  }
+}
