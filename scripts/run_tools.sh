@@ -96,6 +96,71 @@ check_wails() {
   [ -x "$WAILS_CMD" ] || log_error "Wails CLI 安装失败"
 }
 
+# 非 root 且有 sudo 时才用 sudo（CI runner 上为免密 sudo）
+SUDO=""
+if [ "$(id -u 2>/dev/null || echo 0)" != "0" ] && command -v sudo &>/dev/null; then
+  SUDO="sudo"
+fi
+
+APT_INDEX_REFRESHED=0
+apt_refresh_once() {
+  [ "${APT_INDEX_REFRESHED:-0}" = "1" ] && return 0
+  if ! command -v apt-get &>/dev/null; then
+    log_warn "未检测到 apt-get，跳过自动依赖安装。请确保已手动安装 Wails Linux 构建依赖"
+    return 1
+  fi
+  APT_INDEX_REFRESHED=1
+  log_info "刷新 apt 索引 ..."
+  # shellcheck disable=SC2086
+  $SUDO apt-get update -qq || log_warn "apt-get update 未完全成功，继续尝试安装"
+  return 0
+}
+
+apt_install() {
+  apt_refresh_once || return 1
+  log_info "安装 Linux 构建依赖: $*"
+  # shellcheck disable=SC2086
+  DEBIAN_FRONTEND=noninteractive $SUDO apt-get install -y --no-install-recommends "$@" \
+    || log_error "apt-get install 失败: $*"
+}
+
+# Linux: Wails v2 需要 CGO 工具链 + GTK3 + WebKit2GTK(4.0)；zip 用于打包发布产物
+ensure_linux_deps() {
+  local need=()
+  command -v pkg-config &>/dev/null || need+=("pkg-config")
+  command -v gcc &>/dev/null        || need+=("build-essential")
+  command -v zip &>/dev/null        || need+=("zip")
+  pkg-config --exists gtk+-3.0 2>/dev/null       || need+=("libgtk-3-dev")
+  pkg-config --exists webkit2gtk-4.0 2>/dev/null \
+    || need+=("libwebkit2gtk-4.0-dev" "libglib2.0-dev" "libsoup-3.0-dev" "javascriptcoregtk-4.0-dev")
+
+  [ ${#need[@]} -eq 0 ] || apt_install "${need[@]}"
+
+  if ! pkg-config --cflags --libs gtk+-3.0 webkit2gtk-4.0 >/dev/null 2>&1; then
+    log_error "pkg-config 无法解析 gtk+-3.0/webkit2gtk-4.0：$(pkg-config --errors --exists gtk+-3.0 webkit2gtk-4.0 2>&1 | head -3)"
+  fi
+  log_success "Linux 构建依赖就绪 (webkit2gtk-4.0 → $(pkg-config --modversion webkit2gtk-4.0))"
+}
+
+# macOS: 仅需 Xcode Command Line Tools (clang)，CI runner 已内置
+ensure_macos_deps() {
+  command -v clang &>/dev/null \
+    || log_error "缺少 clang，请安装 Xcode Command Line Tools: xcode-select --install"
+}
+
+# Windows: Wails v2 无需 CGO（WebView2 由系统提供），构建本身无额外系统依赖
+ensure_windows_deps() {
+  : # no-op
+}
+
+ensure_build_deps() {
+  case "$HOST_OS" in
+    linux)   ensure_linux_deps ;;
+    darwin)  ensure_macos_deps ;;
+    windows) ensure_windows_deps ;;
+  esac
+}
+
 # ============================================================
 # 版本管理
 # ============================================================
@@ -358,7 +423,7 @@ kill_existing() {
 }
 
 cmd_build() {
-  check_go; check_wails
+  check_go; check_wails; ensure_build_deps
   local version
   version=$(get_version)
   sync_wails_version
