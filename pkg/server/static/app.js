@@ -198,7 +198,7 @@ function renderBarChart(data, opts = {}) {
     const y = h - pad - bh;
     const color = opts.color || '#3b82f6';
     const tipText = opts.tooltip ? opts.tooltip(d) : `${d.label || ''}: ${formatHours(d.value)}`;
-    return `<rect x="${x}" y="${y}" width="${barInnerW}" height="${bh}" fill="${color}" rx="3"><title>${escapeHtml(tipText)}</title></rect>
+    return `<rect class="chart-tip" data-tip="${escapeHtml(tipText)}" x="${x}" y="${y}" width="${barInnerW}" height="${bh}" fill="${color}" rx="3"></rect>
             ${d.value > 0 ? `<text x="${x + barInnerW/2}" y="${y - 4}" text-anchor="middle" font-size="10" fill="#666">${formatHours(d.value)}</text>` : ''}`;
   }).join('');
   const labelStep = Math.ceil(data.length / 12);
@@ -276,7 +276,7 @@ function renderGroupedBarChart(groups, opts = {}) {
       const bh = (v.value / maxVal) * chartH;
       const y = chartH + pad - bh;
       const tipText = g.tooltip ? g.tooltip(v) : `${g.label} ${v.name}: ${formatHours(v.value)} 课时`;
-      return `<rect x="${x}" y="${y}" width="${barW}" height="${bh}" fill="${nameColor[v.name]}" rx="2"><title>${escapeHtml(tipText)}</title></rect>${v.value > 0 ? `<text x="${x + barW/2}" y="${y - 3}" text-anchor="middle" font-size="8" fill="#666">${formatHours(v.value)}</text>` : ''}`;
+      return `<rect class="chart-tip" data-tip="${escapeHtml(tipText)}" x="${x}" y="${y}" width="${barW}" height="${bh}" fill="${nameColor[v.name]}" rx="2"></rect>${v.value > 0 ? `<text x="${x + barW/2}" y="${y - 3}" text-anchor="middle" font-size="8" fill="#666">${formatHours(v.value)}</text>` : ''}`;
     }).join('');
   }).join('');
   const labelStep = Math.ceil(groups.length / 12);
@@ -288,6 +288,54 @@ function renderGroupedBarChart(groups, opts = {}) {
     <line x1="${pad}" y1="${pad + legendH}" x2="${pad}" y2="${chartH + pad}" stroke="#e5e7eb"/>
     ${bars}${xLabels}
   </svg>`;
+}
+
+// ==================== 图表悬停提示（自定义 tooltip） ====================
+let _chartTip = null;
+function getChartTip() {
+  if (_chartTip) return _chartTip;
+  _chartTip = document.createElement('div');
+  _chartTip.className = 'chart-tooltip';
+  _chartTip.style.display = 'none';
+  document.body.appendChild(_chartTip);
+  return _chartTip;
+}
+
+function positionChartTip(evt) {
+  const tip = getChartTip();
+  const offset = 14;
+  let left = evt.clientX + offset;
+  let top = evt.clientY + offset;
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  if (left + tw > window.innerWidth - 8) left = evt.clientX - tw - offset;
+  if (top + th > window.innerHeight - 8) top = evt.clientY - th - offset;
+  if (left < 8) left = 8;
+  if (top < 8) top = 8;
+  tip.style.left = left + 'px';
+  tip.style.top = top + 'px';
+}
+
+function initChartTooltip() {
+  document.addEventListener('mouseover', function(e) {
+    const t = e.target && e.target.closest ? e.target.closest('.chart-tip') : null;
+    if (!t) return;
+    const text = t.getAttribute('data-tip');
+    if (!text) return;
+    const tip = getChartTip();
+    tip.textContent = text;
+    tip.style.display = 'block';
+    positionChartTip(e);
+  });
+  document.addEventListener('mousemove', function(e) {
+    const tip = _chartTip;
+    if (!tip || tip.style.display !== 'block') return;
+    if (!(e.target && e.target.closest && e.target.closest('.chart-tip'))) { tip.style.display = 'none'; return; }
+    positionChartTip(e);
+  });
+  document.addEventListener('mouseout', function(e) {
+    const t = e.target && e.target.closest ? e.target.closest('.chart-tip') : null;
+    if (t && _chartTip) _chartTip.style.display = 'none';
+  });
 }
 
 // ==================== 页面: 仪表盘 ====================
@@ -1819,9 +1867,9 @@ function renderStudentChart() {
       label,
       values: courses.map(c => ({ name: c, value: grouped[key][c] || 0 })),
       tooltip: (v) => {
-        const dates = [...(groupedDates[key][v.name] || [])].sort();
-        const dateStr = dates.length > 0 ? dates.join(', ') : key;
-        return `${dateStr} ${v.name}: ${formatHours(v.value)} 课时`;
+        const dates = Array.from(groupedDates[key][v.name] || []).sort();
+        const detail = dates.length > 0 ? dates.join('、') : label;
+        return `${label}\n${v.name}：消耗 ${formatHours(v.value)} 课时\n上课日期：${detail}`;
       },
     };
   });
@@ -2279,6 +2327,7 @@ function renderNav() {
 
 function init() {
   renderNav();
+  initChartTooltip();
   updateUnreadCount();
   setInterval(updateUnreadCount, 60000);
   window.addEventListener('hashchange', router);

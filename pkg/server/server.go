@@ -206,7 +206,9 @@ func listenOrFallback(port int, allowFallback bool) (net.Listener, int, error) {
 		maxAttempts = 50
 	}
 	for i := 0; i < maxAttempts; i++ {
-		addr := ":" + strconv.Itoa(port + i)
+		// 仅绑定回环地址 127.0.0.1，避免监听所有网卡(0.0.0.0)触发 macOS
+		// 应用防火墙「接受传入网络连接」提示；本机 localhost 访问不受影响
+		addr := "127.0.0.1:" + strconv.Itoa(port+i)
 		listener, err := net.Listen("tcp", addr)
 		if err == nil {
 			return listener, port + i, nil

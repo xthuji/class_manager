@@ -305,6 +305,7 @@ sync_release() {
 }
 
 # macOS only: 用 hdiutil 生成 DMG（文件名带版本号）
+# 卷内包含 App + Applications 快捷方式，支持拖拽安装；不碰 Finder 定制，打包全程无窗口弹出
 build_dmg() {
   [ "$HOST_OS" = "darwin" ] || return 0
   local version
@@ -320,13 +321,24 @@ build_dmg() {
   mkdir -p "$release_dir"
   rm -f "$release_dmg"
 
+  # staging 目录：App + Applications 符号链接（hdiutil 会将其写入为
+  # Finder 别名，用户拖到此处即完成安装）
+  local staging
+  staging="$(mktemp -d "${TMPDIR:-/tmp}/${APP_NAME}_dmg.XXXXXX")"
+  trap "rm -rf '$staging'" EXIT
+  cp -R "$source_app" "$staging/${APP_NAME}.app"
+  ln -s /Applications "$staging/Applications"
+
   log_info "生成 DMG: ${APP_NAME}_v${version}.dmg ..."
   hdiutil create \
     -volname "$APP_NAME" \
-    -srcfolder "$source_app" \
+    -srcfolder "$staging" \
     -ov \
     -format UDZO \
     "$release_dmg" > /dev/null
+
+  rm -rf "$staging"
+  trap - EXIT
 
   log_success "Release DMG  → $release_dmg"
 }

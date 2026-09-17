@@ -371,3 +371,14 @@ input[type="date"][readonly] { background: #fff; color: var(--gray-800); cursor:
 .dp-today { color: var(--primary); font-weight: 600; }
 .dp-selected { background: var(--primary); color: #fff; font-weight: 600; }
 .dp-selected:hover { background: var(--primary); }
+
+/* === 图表悬停提示 tooltip === */
+.chart-tip { cursor: default; transition: opacity 0.15s; }
+.chart-tip:hover { opacity: 0.75; }
+.chart-tooltip {
+  position: fixed; z-index: 300; pointer-events: none; display: none;
+  max-width: 280px; padding: 8px 10px; border-radius: 8px;
+  background: var(--gray-800); color: #fff; font-size: 12px; line-height: 1.5;
+  white-space: pre-line; text-align: left; user-select: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
