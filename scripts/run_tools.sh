@@ -80,20 +80,51 @@ check_go() {
   command -v go &>/dev/null || log_error "Go 未安装 (https://go.dev/dl)"
 }
 
+# 期望的 Wails CLI 版本：以 go.mod 中的库版本为唯一事实源，避免 CLI/库版本漂移告警
+wails_want_version() {
+  grep -E 'github\.com/wailsapp/wails/v2( |$)' go.mod | head -1 | awk '{print $2}'
+}
+
+# 提取某个 wails 二进制自报的版本号（形如 v2.x.y）
+wails_cli_version_of() {
+  "$1" version 2>/dev/null | grep -Eo 'v2\.[0-9]+\.[0-9]+' | head -1
+}
+
+# 解析一个可用的 wails CLI 版本：
+#   1) 项目本地 .tools/bin 已装且版本匹配 go.mod → 直接用
+#   2) 系统/全局 CLI 版本正好匹配 → 复用，免安装
+#   3) 否则把 go.mod 指定版本装到项目本地 GOBIN（不污染全局），保证 CLI==库
 check_wails() {
   if [ -n "$WAILS_CMD" ]; then return 0; fi
-  if [ -x "$HOME/go/bin/wails" ]; then
-    WAILS_CMD="$HOME/go/bin/wails"
-  elif [ -n "${USERPROFILE:-}" ] && [ -x "$USERPROFILE/go/bin/wails.exe" ] 2>/dev/null; then
-    WAILS_CMD="$USERPROFILE/go/bin/wails"
-  elif command -v wails &>/dev/null; then
-    WAILS_CMD="wails"
-  else
-    log_warn "Wails CLI 未安装，正在安装..."
-    go install github.com/wailsapp/wails/v2/cmd/wails@v2.9.0
-    WAILS_CMD="$HOME/go/bin/wails"
+
+  local want
+  want="$(wails_want_version)"
+  [ -n "$want" ] || log_error "无法从 go.mod 解析 Wails 版本"
+
+  local local_bin="$PROJECT_DIR/.tools/bin/wails${EXT}"
+
+  if [ -x "$local_bin" ] && [ "$(wails_cli_version_of "$local_bin")" = "$want" ]; then
+    WAILS_CMD="$local_bin"; return 0
   fi
-  [ -x "$WAILS_CMD" ] || log_error "Wails CLI 安装失败"
+
+  local global=""
+  if [ -x "$HOME/go/bin/wails" ]; then
+    global="$HOME/go/bin/wails"
+  elif [ -n "${USERPROFILE:-}" ] && [ -x "$USERPROFILE/go/bin/wails.exe" ] 2>/dev/null; then
+    global="$USERPROFILE/go/bin/wails"
+  elif command -v wails &>/dev/null; then
+    global="$(command -v wails)"
+  fi
+  if [ -n "$global" ] && [ "$(wails_cli_version_of "$global")" = "$want" ]; then
+    WAILS_CMD="$global"; return 0
+  fi
+
+  log_info "Wails CLI 目标版本 $want (对齐 go.mod)，安装到项目本地 .tools/bin ..."
+  mkdir -p "$PROJECT_DIR/.tools/bin"
+  GOBIN="$PROJECT_DIR/.tools/bin" go install "github.com/wailsapp/wails/v2/cmd/wails@${want}" \
+    || log_error "Wails CLI 安装失败 ($want)"
+  [ -x "$local_bin" ] || log_error "Wails CLI 安装后不可用: $local_bin"
+  WAILS_CMD="$local_bin"
 }
 
 # 非 root 且有 sudo 时才用 sudo（CI runner 上为免密 sudo）
@@ -282,26 +313,22 @@ sync_app_icon() {
 }
 
 # 将构建产物复制到 release 目录
+# macOS: 只产出 DMG，release/ 不放置 .app（由 build_dmg 直接从 build/bin 取源）
 sync_release() {
+  if [ "$HOST_OS" = "darwin" ]; then
+    return 0
+  fi
+
   local release_dir="$PROJECT_DIR/release"
   mkdir -p "$release_dir"
 
-  if [ "$HOST_OS" = "darwin" ]; then
-    local app_path="$BUILD_DIR/bin/${APP_NAME}.app"
-    local release_app="${release_dir}/${APP_NAME}.app"
-    [ -d "$app_path" ] || return 0
-    rm -rf "$release_app"
-    cp -R "$app_path" "$release_app"
-    log_success "Release App  → $release_app"
-  else
-    local bin_path
-    bin_path=$(get_build_binary)
-    [ -f "$bin_path" ] || return 0
-    local release_bin="${release_dir}/${APP_NAME}${EXT}"
-    cp -f "$bin_path" "$release_bin"
-    chmod +x "$release_bin" 2>/dev/null || true
-    log_success "Release Bin  → $release_bin"
-  fi
+  local bin_path
+  bin_path=$(get_build_binary)
+  [ -f "$bin_path" ] || return 0
+  local release_bin="${release_dir}/${APP_NAME}${EXT}"
+  cp -f "$bin_path" "$release_bin"
+  chmod +x "$release_bin" 2>/dev/null || true
+  log_success "Release Bin  → $release_bin"
 }
 
 # macOS only: 用 hdiutil 生成 DMG（文件名带版本号）
@@ -311,15 +338,16 @@ build_dmg() {
   local version
   version=$(get_version)
   local release_dir="$PROJECT_DIR/release"
-  local release_app="${release_dir}/${APP_NAME}.app"
   local release_dmg="${release_dir}/${APP_NAME}_v${version}.dmg"
 
-  local source_app="$release_app"
-  [ -d "$source_app" ] || source_app="$BUILD_DIR/bin/${APP_NAME}.app"
+  # 直接从 build/bin 取源（sync_config_macos / fix_app_info 已在此完成）
+  local source_app="$BUILD_DIR/bin/${APP_NAME}.app"
   [ -d "$source_app" ] || return 0
 
   mkdir -p "$release_dir"
   rm -f "$release_dmg"
+  # 清理历史遗留的 .app，release/ 只保留 DMG
+  rm -rf "${release_dir}/${APP_NAME}.app"
 
   # staging 目录：App + Applications 符号链接（hdiutil 会将其写入为
   # Finder 别名，用户拖到此处即完成安装）

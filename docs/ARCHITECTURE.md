@@ -12,7 +12,7 @@
 - **形态**：跨平台桌面应用（macOS `.app` + `.dmg`、Linux ELF + `.zip`、Windows `.exe` + `.zip`），内嵌 HTTP 服务 + WebView 前端。
 - **技术栈**：
   - **后端**：Go 1.22（macOS 强制 `GOTOOLCHAIN=go1.22.12`，Linux/Windows 使用系统 Go）
-  - **桌面框架**：Wails v2.9.0（Go 后端 + WebView 前端，同一 HTTP Handler 提供 API 与静态资源）
+  - **桌面框架**：Wails v2.12.0（Go 后端 + WebView 前端，同一 HTTP Handler 提供 API 与静态资源）
   - **数据库**：SQLite，驱动 `modernc.org/sqlite`（纯 Go，无 CGO，跨平台编译）
   - **前端**：原生 HTML/CSS/JS（无构建步骤，通过 `go:embed` 内嵌），非 Node 前端框架
   - **HTTP**：标准库 `net/http`，使用 Go 1.22 的 `ServeMux` 方法+路径模式路由
@@ -359,7 +359,7 @@ GOTOOLCHAIN=go1.22.12 go test -v ./...
 - 10.15 仅 amd64；`darwin/universal` 产物中的 amd64 切片可在 10.15 运行
 - 依赖须兼容 Go 1.22；禁用 macOS 11 Big Sur+ 专属 API
 - 发布前须在 macOS 10.15 (amd64) 环境实测构建产物可正常安装运行
-- **CI Runner** 固定用 `macos-15`：`macos-latest` 已切换到 macOS 26，其 dyld 严格校验 LC_UUID 且与 wails v2.9.0 存在 SDK 兼容性问题
+- **CI Runner** 固定用 `macos-15`：`macos-latest` 已切换到 macOS 26，其 dyld 严格校验 LC_UUID 且与 wails v2.12.0 存在 SDK 兼容性问题
 
 ### 三平台通用
 

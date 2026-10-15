@@ -21,6 +21,9 @@ wailsjs/
 build/
 release/
 
+# === 项目本地工具链（run_tools.sh 安装的版本对齐 wails CLI）===
+.tools/
+
 # === 数据库 ===
 *.sqlite
 *.sqlite-wal

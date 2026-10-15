@@ -21,7 +21,7 @@
 
 | 组件 | 选型 |
 |------|------|
-| 桌面框架 | Wails v2.9.0 (Go 后端 + WebView) |
+| 桌面框架 | Wails v2.12.0 (Go 后端 + WebView) |
 | 开发语言 | Go 1.22 (工具链锁定 `go1.22.12`) |
 | 数据库 | SQLite (`modernc.org/sqlite`，纯 Go 无 CGO) |
 | 前端 | 原生 HTML/CSS/JS，经 `go:embed` 内嵌，无 Node 构建链 |
@@ -32,7 +32,7 @@
 **Go & Wails CLI (三平台通用)**
 
 - Go 1.22 (须保持 `go.mod` 中 `toolchain go1.22.12`，禁止升级到 Go 1.23+，否则破坏 macOS 10.15 兼容)
-- [Wails CLI v2](https://wails.io/docs/gettingstarted/installation) (`scripts/run_tools.sh` 缺失时会自动安装 v2.9.0)
+- [Wails CLI v2](https://wails.io/docs/gettingstarted/installation) (`scripts/run_tools.sh` 会以 `go.mod` 中的库版本为准，将匹配版本的 CLI 安装到项目本地 `.tools/bin`，避免 CLI/库版本漂移告警)
 
 **平台开发依赖**
 
