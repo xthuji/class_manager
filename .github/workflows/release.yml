@@ -3,16 +3,20 @@ name: Release ClassManager
 # =============================================================================
 # v* tag 触发，三平台并行构建，汇总发布到 GitHub Release。
 #
-# 全部构建相关逻辑集中在 ./scripts/run_tools.sh build（自动按当前 runner 平台分派）：
-#   - 构建依赖准备：Linux apt 装 CGO 工具链 + GTK3 + WebKit2GTK(4.0) + zip；
-#     macOS 校验 clang (Xcode CLT)；Windows 无需 CGO（WebView2 由系统提供）
-#   - 打包：macOS darwin/universal → .app → .dmg；Linux zip；Windows zip
+# 全部构建相关逻辑集中在 ./scripts/run_tools.sh build（薄入口 + 跨项目公共母版
+# run_tools_master.sh，source 加载），由脚本按当前 runner 平台自动分派：
+#   - 构建依赖准备：Linux apt 装 CGO 工具链 + GTK3 + WebKit2GTK(4.0，含 4.1 兼容
+#     别名) + zip；macOS 校验 clang (Xcode CLT)；Windows 无需 CGO（WebView2 由系统提供）
+#   - Wails CLI：$HOME/go/bin → PATH → 自动 go install（版本对齐 go.mod，防 CLI/库漂移）
+#   - 打包：macOS darwin/universal → .app → ad-hoc 签名 → hdiutil 生成 .dmg；
+#     Linux/Windows zip（含 configs/）
 # 本 workflow 只做 runner 引导（checkout、Go 工具链与缓存）与产物上传，不写任何
-# 系统依赖 / wails / hdiutil / zip 细节，避免与本地行为漂移。
+# 系统依赖 / wails / codesign / hdiutil / zip 细节，避免与本地行为漂移。
 #
 # 注意：macOS runner 固定 macos-15。macos-latest 已切到 macOS 26，其 dyld 会拒绝加载
-#   Go 1.22 链接器生成的缺失 LC_UUID 的二进制（run_tools.sh 已用 -B gobuildid 规避，
-#   但仍建议锁定稳定 runner）。
+#   Go 1.22 链接器生成的缺失 LC_UUID 的二进制（run_tools.sh 的 build_impl 已用
+#   -B gobuildid 规避，但仍建议锁定稳定 runner）。Linux runner 固定 ubuntu-22.04，
+#   因其自带 webkit2gtk-4.0，与 Wails v2 硬编码依赖一致。
 # =============================================================================
 
 on:
@@ -36,8 +40,8 @@ jobs:
           cache: true
           cache-dependency-path: go.sum
 
-      # run_tools.sh 内部完成：安装 wails CLI + 校验 clang → wails build (darwin/universal)
-      #   → 同步 config.json → 修复 Info.plist → hdiutil 生成 DMG
+      # run_tools.sh 内部完成：安装 wails CLI + 校验 clang → wails build (darwin/universal,
+      # 追加 -B gobuildid) → 同步 config.json → 修复 Info.plist → ad-hoc 签名 → hdiutil 生成 DMG
       - name: Build & package via run_tools.sh
         run: |
           chmod +x ./scripts/run_tools.sh
