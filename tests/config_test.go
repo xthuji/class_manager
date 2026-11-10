@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/class_manager/pkg/config"
+	"class_manager/pkg/config"
 )
 
 // 已知的默认配置值（与 config.defaultConfig 保持一致）。

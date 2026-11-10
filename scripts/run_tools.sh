@@ -51,14 +51,19 @@ VERSION=""
 # --- 构建策略 ---
 IS_WAILS=1                     # 0=纯 Go 桌面（自行覆盖 build_impl / get_app_bundle）
 PLATFORM_SCOPE="all"        # darwin=仅面向 macOS 产物
-MACOS_MIN_VERSION="12.0"
+MACOS_MIN_VERSION="10.15"
 MACOS_UNIVERSAL_DEFAULT=1     # 1=恒产 universal；0=本地单架构 + 环境变量开关
 UNIVERSAL_ENV_VAR=""     # 例：EASYDIFF_UNIVERSAL
 WAILS_BUILD_CLEAN=0
-WAILS_PIN_VERSION=""                    # 留空=对齐 go.mod 的 wails 版本（真源）
+# 显式 pin v2.12.0：MACOS_MIN_VERSION=10.15 Catalina 是 Go 1.22 最后支持的版本，
+# Wails v2.13+ 强制 Go 1.25 + macOS 12 Monterey，会打破 Catalina 兼容性。
+# 入口覆盖 check_wails 会从 .tools/bin/wails 加载，不会污染全局 $HOME/go/bin/wails。
+WAILS_PIN_VERSION="v2.12.0"
 NEEDS_CGO=0                   # 1=Windows 构建需要 MinGW-w64
 ADHOC_SIGN=1                      # 1=macOS 构建后 ad-hoc 签名
 GO_BUILD_LDFLAGS="-s -w"
+# 非 UPX 体积优化：go build 顶层 flag（母版 cmd_build 会 export GOFLAGS 透传）
+GO_BUILD_EXTRA_FLAGS="-trimpath -buildvcs=false"
 VERSION_LD_VAR="main.Version"        # 版本注入的 Go 变量（ldflags -X）
 LDFLAGS_EXTRA=""
 GOTOOLCHAIN_VER="go1.22.12"
@@ -95,11 +100,30 @@ commands=(
 # npm install -> ENOENT，故此处整体跳过前端构建（同 easy_download/launchpad）。
 ensure_frontend() { :; }
 
+# 覆盖母版 check_wails：项目自管 Wails CLI，装到 .tools/bin/wails（已在 .gitignore），
+# 不使用全局 $HOME/go/bin/wails，避免污染其他无需兼容 Catalina 的项目。
+check_wails() {
+  local tools_bin="$PROJECT_DIR/.tools/bin/wails"
+  if [ -n "$WAILS_CMD" ] && [ -x "$WAILS_CMD" ]; then return 0; fi
+  if [ -x "$tools_bin" ]; then
+    WAILS_CMD="$tools_bin"
+    return 0
+  fi
+  log_info "ClassManager 专用 Wails CLI 未安装，正在安装 v2.12.0（不使用全局 CLI）..."
+  mkdir -p "$PROJECT_DIR/.tools/bin"
+  GOTOOLCHAIN="$GOTOOLCHAIN_VER" run go install -o "$PROJECT_DIR/.tools/bin/wails" \
+    github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
+  WAILS_CMD="$tools_bin"
+  [ -x "$WAILS_CMD" ] || log_error "项目专用 Wails CLI 安装失败"
+}
+
 # Go 1.22 链接器默认不生成 Mach-O LC_UUID，新版 macOS (26+) 的 dyld 会直接
 # abort 加载缺失 LC_UUID 的二进制，故 darwin 构建追加 -B gobuildid；
 # Linux/Windows 无此问题，保持精简 ldflags。
+# 同时自己 export GOFLAGS（母版未处理 GO_BUILD_EXTRA_FLAGS），让体积优化 flag 生效。
 build_impl() {
   local ldflags="$1"
+  export GOFLAGS="${GO_BUILD_EXTRA_FLAGS}"
   # 前端为 Go 内嵌静态资源，脚本侧无 npm 步骤；-s 让 wails 跳过内部
   # frontend:install / build（当前 wails.json 未配置，属双保险）
   if [ "$HOST_OS" = "darwin" ]; then

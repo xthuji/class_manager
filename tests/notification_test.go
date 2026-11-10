@@ -3,9 +3,9 @@ package tests
 import (
 	"testing"
 
-	"github.com/class_manager/pkg/db"
-	"github.com/class_manager/pkg/models"
-	"github.com/class_manager/pkg/services"
+	"class_manager/pkg/db"
+	"class_manager/pkg/models"
+	"class_manager/pkg/services"
 )
 
 func TestNotificationService_GetUnreadCount(t *testing.T) {

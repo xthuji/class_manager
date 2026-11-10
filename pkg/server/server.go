@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/class_manager/pkg/api"
-	"github.com/class_manager/pkg/utils"
+	"class_manager/pkg/api"
+	"class_manager/pkg/utils"
 )
 
 //go:embed static/*

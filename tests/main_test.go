@@ -8,7 +8,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/class_manager/pkg/db"
+	"class_manager/pkg/db"
 )
 
 // TestMain 在所有测试执行前初始化一个隔离的临时 SQLite 数据库。

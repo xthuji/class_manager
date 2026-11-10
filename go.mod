@@ -1,4 +1,4 @@
-module github.com/class_manager
+module class_manager
 
 go 1.22.0
 
@@ -49,5 +49,3 @@ require (
 	modernc.org/strutil v1.2.0 // indirect
 	modernc.org/token v1.1.0 // indirect
 )
-
-replace github.com/class_manager => .

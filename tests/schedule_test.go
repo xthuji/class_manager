@@ -3,8 +3,8 @@ package tests
 import (
 	"testing"
 
-	"github.com/class_manager/pkg/models"
-	"github.com/class_manager/pkg/services"
+	"class_manager/pkg/models"
+	"class_manager/pkg/services"
 )
 
 func TestScheduleService_CRUD(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/class_manager/pkg/utils"
+	"class_manager/pkg/utils"
 )
 
 const (

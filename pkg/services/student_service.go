@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/class_manager/pkg/db"
-	"github.com/class_manager/pkg/models"
-	"github.com/class_manager/pkg/utils"
+	"class_manager/pkg/db"
+	"class_manager/pkg/models"
+	"class_manager/pkg/utils"
 )
 
 type StudentService struct{}

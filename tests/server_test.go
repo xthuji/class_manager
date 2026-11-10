@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/class_manager/pkg/db"
-	"github.com/class_manager/pkg/server"
+	"class_manager/pkg/db"
+	"class_manager/pkg/server"
 )
 
 func doRequest(t *testing.T, srv *server.Server, method, path string, body interface{}) *httptest.ResponseRecorder {
